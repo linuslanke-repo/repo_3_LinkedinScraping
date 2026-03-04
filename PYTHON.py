@@ -1,64 +1,33 @@
+
+import os
+import csv
+import time
+import random
+import logging
+from datetime import datetime
+from typing import List, Dict, Optional
+
+import requests
 from selenium import webdriver
-from webdriver_manager.chrome import ChromeDriverManager
-from tqdm import tqdm
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
-
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, NoSuchElementException, \
-    ElementNotInteractableException
-import sys
-# Mail Importing
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText  # Import MIMEText for body text
-from email.mime.base import MIMEBase
-from email import encoders
-
-import time
-import csv
-import random
-import os
-import datetime
-import requests
-from datetime import datetime
-today = datetime.now()
-date_time = today.strftime("%Y_%m_%d")
-import win32com.client as win32
+from selenium.common.exceptions import (
+    TimeoutException,
+    NoSuchElementException,
+    ElementNotInteractableException,
+)
+from webdriver_manager.chrome import ChromeDriverManager
 
 
-# from config import USERNAME, PASSWORD, CHROME_DRIVER_PATH, OUTPUT_DIRECTORY, LINK, KEYWORDS, FRAUD_COMPANIES_LIST, MAX_NO_OF_PAGES_TO_POOL
+# =========================
+# CONFIGURATION
+# =========================
 
-# USERNAME = "dakshayaniyellanki@gmail.com"
-# PASSWORD = "#@292686@#"
-# USERNAME = "kotaharshita@gmail.com"
-# PASSWORD = "Harshita123$"
-# USERNAME = "8106012348"
-# PASSWORD = "r@vinxtwave"
-# USERNAME = "anjalianuz.0508@gmail.com"
-# PASSWORD = "Satyavathi@3213"
-# USERNAME = "subbumanne28@gmail.com"
-# PASSWORD = "Oppo@123"
-CHROME_DRIVER_PATH = r"c:\Users\NxtWave Hire\Downloads\chromedriver-win32\chromedriver-win32\chromedriver.exe"
-OUTPUT_DIRECTORY = r"C:\Users\linus\Downloads\LinkedIN"
-# key_word = sys.argv[1]
-# USERNAME = sys.argv[2]
-# PASSWORD = sys.argv[3]
-key_word = 'Python'
-# USERNAME = "kotaharshita@gmail.com"
-# PASSWORD = "Harshita123$"
-LINK = f'https://www.linkedin.com/jobs/search/?currentJobId=4304630441&f_E=1%2C2&f_TPR=r86400&keywords={str(key_word)}'
-print(f'Scraping with Keyword "{key_word}"')
-# print ( f'Current Arguments :{sys.argv[1:]}')
+KEYWORDS = ["Entry Level", "Intern", "Internship", "0-1", "0-2", "0-3"]
 
-print(f'LINK : {LINK} ')
-# LINK ="https://www.linkedin.com/jobs/search/?currentJobId=4304630441&f_E=1%2C2&f_TPR=r86400&keywords=%28%22React%20Developer%22%20OR%20%22Frontend%20Developer%22%20OR%20%22Front%20End%20Developer%22%29%20AND%20%28React%20OR%20%22React.js%22%20OR%20%22ReactJS%22%29"
-# WEB_APP_URL = "https://script.google.com/macros/s/AKfycbztQssu11nwksFG_mdVOFW_fVRuJPxsejmj9cRhLOIKCdCYWxp66aVJgYHrnge36lIQDQ/exec"
-WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw_G1iVzFqdGNcaeTIg59uPhUPerf5m0bawyBmjEW51mymYoP1V6LNfCLNFRy6L5qQhXA/exec"
-KEYWORDS = ["Entry Level", "0", "0-1", "0-2", "Internship+ Full Time", "Internship", "2024", "2025", "2023",
-            "Recent Graduates", "PPO", "JobOffer", "Trainee", "Intern", "0-3"]
 FRAUD_COMPANIES_LIST = ["Turing", "Wipro", "Infosys", "Tech Mahindra", "CGI", "Tekwissen India", "Enerzcloud Solutions",
                         "The Skillians" "GE Healthcare", "IBM", "Larsen & Toubro", "Innovate Solutions", "Lead India",
                         "WeBoost Solutions by UM", "UM IT Solutions", "UNIKWORKS", "Infosys", "Accenture",
@@ -71,6 +40,7 @@ FRAUD_COMPANIES_LIST = ["Turing", "Wipro", "Infosys", "Tech Mahindra", "CGI", "T
                         "Nexpro247", "O A Compserve", "Rakesh Kumar", "MNC Group", "Accenture in India",
                         "Divya Placement Consultants", "EY", "TECHPLEMENT", "The BigCjobs.com", "Workassist",
                         "Refonte Learning", "Skill Secure AI", "Traders Training Academy"]
+
 SKIP_ROLE_NAMES = ["Azure", "Business Development", "SALES", "Campus Ambassador", "Data Analytics", "Data Engineer",
                    "Data Scientist", "Devops", "Data Analyst", "Digital Marketing", "Operations", "Embedded Engineer",
                    "Flutter", "Human Resources", "iOS Developer", "WordPress", "Sales Executive", "Sales Intern", "SEO",
@@ -80,606 +50,424 @@ SKIP_ROLE_NAMES = ["Azure", "Business Development", "SALES", "Campus Ambassador"
                    "Graphic Design", "Graphic Designer", "Placement Coordinator", "Blockchain", "Project Engineer",
                    "Product Analyst", "Mechanical", "AWS", "Service Engineer", "Site Engineer"]
 
-MAX_NO_OF_PAGES_TO_POOL = 1
+DEFAULT_MAX_PAGES = 10
+WEB_APP_URL="https://script.google.com/macros/s/AKfycbw_G1iVzFqdGNcaeTIg59uPhUPerf5m0bawyBmjEW51mymYoP1V6LNfCLNFRy6L5qQhXA/exec"
 
-# Email credentials for Gmail
-SENDER_EMAIL = "sunilchandralanke@gmail.com"  # Replace with your Gmail address
-SENDER_PASSWORD = "iiii"  # Use your App Password if 2FA is enabled
+# =========================
+# LOGGING
+# =========================
 
-# List of recipients' emails
-RECIPIENT_EMAILS = ["linuslanke@gmail.com"]  # Add multiple emails here
-RECIPIENT_EMAIL = ",".join(RECIPIENT_EMAILS)  # Join the list of emails into a comma-separated string
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
-SMTP_SERVER = "smtp.gmail.com"
-SMTP_PORT = 587  # This is the port for TLS/STARTTLS
-
-chrome_options = Options()
-chrome_options.add_argument("--disable-webrtc")
-chrome_options.add_argument("--headless=new")
-# chrome_options.add_argument("--disable-gpu")
-chrome_options.add_argument("--no-sandbox")
-chrome_options.add_argument("--disable-dev-shm-usage")
-chrome_options.add_argument("--window-position=-3000,0")
-chrome_options.add_argument("--disable-notifications")
-chrome_options.add_argument("--window-size=1920,1080")
-chrome_options.add_argument("--disable-popup-blocking")
-chrome_options.add_experimental_option('excludeSwitches', ['enable-logging'])
-chrome_options.add_experimental_option('detach', True)
-# chrome_options.add_argument("--window-size=2560,1440")   # set large window size
-# chrome_options.add_argument("--force-device-scale-factor=0.6")
-# Set up the WebDriver (using Chrome in this example)
-service = Service(ChromeDriverManager().install())
-driver = webdriver.Chrome(service=service, options=chrome_options)
-driver.maximize_window()
-# Initialize an empty list to store job details
-jobs_list = []
-
-def send_mail(file_path):
-    Mail_User ='sunilchandralanke@gmail.com'
-    outlook = win32.Dispatch('outlook.application')
-    mail = outlook.CreateItem(0)
-    mail.To = Mail_User
-    Regards_User ='Developer'
-    # #mail.To = Mail_All_User
-    # #mail.CC = Mail_CC_User
-    # attachment = "C:\\Users\\" + user + "\\OneDrive - GlobalData PLC\\Uswells_Report_Errorlog (1)\\Autogenerated_Report\\Us_Wells_Error_Log\\Us_Wells_Error_Log_" + date + ".xlsx"
-    mail.Subject = f'Scraping Alert with key_word :{key_word} at ' + date_time
-    if file_path:
-        mail.Attachments.Add(file_path)
-        mail.Body = 'Hi, \n' '\n' '\n' \
-               f'Please find the attachment of Autoscraping file for the keyword :{key_word}. \n' '\n' '\n' \
-                f'Regards,\n{Regards_User}'
-    else:
-        mail.Body = 'Hi, \n' '\n' '\n' \
-        f'Please find the acknowledgment for Auto-Scraping task initiated for keyword :{key_word}. \n' '\n' '\n' \
-        f'Regards,\n{Regards_User}'
-    mail.Send()
-    # print("Mail has been send")
-    # file = "C:\\Users\\" + user + "\\OneDrive - GlobalData PLC\\Uswells_Report_Errorlog (1)\\Autogenerated_Report\\Us_Wells_Error_Log\\Us_Wells_Error_Log_" + date + ".xlsx"
-    # subprocess.Popen(f'explorer {file}')
+logger = logging.getLogger(__name__)
 
 
+# =========================
+# DRIVER FACTORY
+# =========================
+
+def create_driver(headless: bool = False) -> webdriver.Chrome:
+    """Create and return a Chrome WebDriver instance."""
+
+    chrome_options = Options()
+
+    if headless:
+        chrome_options.add_argument("--headless=new")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--window-size=1920,1080")
+    chrome_options.add_argument("--disable-notifications")
+    # chrome_options.add_argument("--window-position=-3000,0")
+    service = Service(ChromeDriverManager().install())
+    driver = webdriver.Chrome(service=service, options=chrome_options)
+    driver.maximize_window()
+
+    return driver
 
 
+# =========================
+# PURE LOGIC FUNCTIONS (TESTABLE)
+# =========================
 
-def account_login(USERNAME, PASSWORD):
-    WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "username")))
-    # print("logging into the Portal")
-    # Enter the username
-    username = driver.find_element(By.ID, "username")
-    username.send_keys(str(USERNAME))  # Use constant from configf
-    # print('sent username')
-    # Enter the password
-    password = driver.find_element(By.ID, "password")
-    password.send_keys(str(PASSWORD))  # Use constant from config
-    # print('sent password')
-    time.sleep(2)
-    # Click the login button
-    login_button = driver.find_element(By.XPATH, "//button[@type='submit']")
-    login_button.click()
-    # print('login button clicked')
+def should_skip_role(title: str) -> bool:
+    if not title:
+        return True
 
-    # WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, ".global-nav__me-photo")))
-    # print("accessing the profile image")
+    return any(role.lower() in title.lower() for role in SKIP_ROLE_NAMES)
 
 
-def scroll_job_list():
-    # Locate the parent div containing the job list
-    parent_div = driver.find_element(By.CLASS_NAME, "scaffold-layout__list")
+def is_fraud_company(company: str) -> bool:
+    if not company:
+        return True
 
-    # Find all the child div elements within the parent container
-    child_divs = parent_div.find_elements(By.TAG_NAME, "div")
-
-    # The second element is the one you're interested in, so access it by index
-    second_child = child_divs[1]  # Index 1 represents the second child
-    num_elements_to_load = 3  # Number of elements to load with each scroll
-
-    loaded_elements = len(driver.find_elements(By.CSS_SELECTOR, "[data-occludable-job-id]"))
-    total_elements = loaded_elements + num_elements_to_load
-
-    while loaded_elements < total_elements:
-        # print(f"Scrolling to load next {num_elements_to_load} job items...")
-
-        # Scroll down a bit to load the next set of elements
-        driver.execute_script("arguments[0].scrollTop += arguments[0].offsetHeight;", second_child)
-        time.sleep(2)  # Allow time for the elements to load
-
-        new_loaded_elements = len(driver.find_elements(By.CSS_SELECTOR, "[data-occludable-job-id]"))
-
-        if new_loaded_elements == loaded_elements:
-            # print("No more new elements loaded.")
-            break  # Stop if no new elements are being loaded
-        else:
-            # print(f"Loaded {new_loaded_elements - loaded_elements} new job items.")
-            loaded_elements = new_loaded_elements
+    fraud_list = [c.lower() for c in FRAUD_COMPANIES_LIST]
+    return company.lower() in fraud_list
 
 
-def extract_job_details(key_word):
-    wait_time = random.randint(1, 3)
-    time.sleep(wait_time)
+def match_keywords(title: str, description: str, company: str) -> str:
+    combined = f"{title} {description} {company}".lower()
 
-    # Initialize all variables with default values
-    title = "NA"
-    job_link = "NA"
-    company_name = "NA"
-    company_name_link = "NA"
-    company_website = "NA"
-    employee_size = "NA"
-    company_industry = "NA"
-    company_city = "NA"
-    company_linkedin_url = "NA"
-    location = "NA"
-    posted_time = "NA"
-    insight_text = "NA"
-    job_description = "NA"
-    poc_name = "NA"
-    poc_link = "NA"
-    connection_degree = "NA"
-    headline = "NA"
+    matched = [
+        keyword for keyword in KEYWORDS
+        if keyword.lower() in combined
+    ]
 
-    main_container = driver.find_element(By.CLASS_NAME, "jobs-search__job-details--wrapper")
+    return ", ".join(matched) if matched else "None"
 
-    # Extract Job Title
-    try:
-        title = main_container.find_element(By.CSS_SELECTOR, "h1.t-24.t-bold.inline a").text
-    except:
-        title = "NA"
+keyword = os.getenv("JOB_KEYWORD", "Data Analyst")
+def build_job_dict(
+    keyword: str ,
+    title: str,
+    job_link : str,
+    company_name: str,
+    company_name_link: str,
+    company_website: str,
+    employee_size: str,
+    company_industry: str,
+    company_city: str,
+    company_linkedin_url: str,
+    location : str,
+    posted_time : str,
+    insight_text : str,
+    job_description : str,
+    poc_name : str,
+    poc_link : str,
+    connection_degree : str,
+    headline : str
+) -> Dict:
 
-    # Check if the role name should be skipped
-    if any(skip_role.lower() in title.lower() for skip_role in SKIP_ROLE_NAMES):
-        # print(f"Skipping job with role name: {title}")
-        return  # Skip this job and move to the next one
+    return {
+        "additional_data": keyword,
+        "Title": title or "NA",
+        "Company": company_name or "NA",
+        "posted_time": posted_time or "NA",
+        "Location": location or "NA",
+        "Job Link": job_link or "NA",
+        "job_details": insight_text or "NA",
+        "Description": job_description or "NA",
+        "Matched Keywords": match_keywords(title, job_description, company_name) ,
+        "company_website": company_website or "NA",
+        "employee_size": employee_size or "NA",
+        "company_industry": company_industry or "NA",
+        "company_city": company_city or "NA",
+        "company_linkedin_url": company_linkedin_url or "NA",
+        "poc_name": poc_name or "NA",
+        "poc_profile_link": poc_link or "NA",
+        "connection_degree": connection_degree or "NA",
+        "poc_headline": headline or "NA",
+        "Scraped At": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    }
 
-    # Extract Job Link
-    try:
-        job_title_element = main_container.find_element(By.CSS_SELECTOR,
-                                                        "div.t-24.job-details-jobs-unified-top-card__job-title h1 a")
-        job_link = job_title_element.get_attribute("href")
-    except:
-        job_link = "NA"
 
-    # Extract Company Name and Company Link
-    try:
-        company_name_element = main_container.find_element(By.CLASS_NAME,
-                                                           "job-details-jobs-unified-top-card__company-name")
-        company_name_link = company_name_element.find_element(By.TAG_NAME, "a").get_attribute("href")
-        company_name = company_name_element.text
-    except:
-        company_name = "NA"
-        company_name_link = "NA"
+# =========================
+# SCRAPER CLASS
+# =========================
 
-    # Check if the company is in the fraud list (case insensitive)
-    if company_name.lower() in [fraud_company.lower() for fraud_company in FRAUD_COMPANIES_LIST]:
-        # print(f"Skipping job from fraudulent company: {company_name}")
-        return  # Skip this job and move to the next one
-    else:
-        pass
-        # print("No fraud detected")
+class LinkedInJobScraper:
 
-    # Extract POC (Point of Contact) details
-    try:
-        # Check if hiring team section exists using a more reliable method
-        hiring_team_sections = driver.find_elements(By.TAG_NAME, "h2")
-        hiring_team_section = None
-        for section in hiring_team_sections:
-            if "Meet the hiring team" in section.text:
-                hiring_team_section = section
-                break
+    def __init__(
+        self,
+        driver: webdriver.Chrome,
+        username: str,
+        password: str,
+        keyword: str,
+        max_pages: int = DEFAULT_MAX_PAGES,
+        webhook_url: str = WEB_APP_URL,
+        # webhook_url: Optional[str] = None,
+    ):
+        self.driver = driver
+        self.username = username
+        self.password = password
+        self.keyword = keyword
+        self.max_pages = max_pages
+        self.webhook_url = webhook_url
+        self.jobs: List[Dict] = []
 
-        if hiring_team_section:
-            # Extract POC name and profile link
-            try:
-                poc_element = driver.find_element(By.CSS_SELECTOR, "span.jobs-poster__name strong")
-                poc_name = poc_element.text.strip()
+    # ---------------------
 
-                # Get the parent anchor tag for the profile link
-                poc_link = poc_element.find_element(By.XPATH, "./ancestor::a").get_attribute("href")
-            except:
+    def login(self) -> None:
+        logger.info("Logging into LinkedIn...")
+
+        self.driver.get("https://www.linkedin.com/login")
+
+        WebDriverWait(self.driver, 20).until(
+            EC.presence_of_element_located((By.ID, "username"))
+        )
+
+        self.driver.find_element(By.ID, "username").send_keys(self.username)
+        self.driver.find_element(By.ID, "password").send_keys(self.password)
+        time.sleep(1)
+        # self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        # time.sleep(1)
+        self.driver.find_element(By.XPATH, '//*[@id="organic-div"]/form/div[4]/button').click()
+
+        logger.info("Login submitted.")
+
+    # ---------------------
+
+    def open_jobs_page(self) -> None:
+        url = (f"https://www.linkedin.com/jobs/search/?currentJobId=4304630441&f_E=1%2C2&f_TPR=r86400&keywords={self.keyword}")
+        self.driver.get(url)
+        logger.info(f"Opened jobs page for keyword: {self.keyword}")
+
+    # ---------------------
+
+    def extract_current_job(self) -> Optional[Dict]:
+        location = posted_time = insight_text = job_description = "NA"
+        company_website = employee_size = company_industry = company_city = company_linkedin_url = "NA"
+        time.sleep(random.uniform(1, 2))
+
+        try:
+            title = self.driver.find_element(
+                By.CSS_SELECTOR, "h1"
+            ).text
+        except NoSuchElementException:
+            return None
+
+        if should_skip_role(title):
+            return None
+        try:
+            job_title_element =self.driver.find_element(By.CSS_SELECTOR,"div.t-24.job-details-jobs-unified-top-card__job-title h1 a")
+            job_link = job_title_element.get_attribute("href")
+        except:
+            job_link ="NA"
+        try:
+            company_name_element = self.driver.find_element(By.CLASS_NAME,
+                                                               "job-details-jobs-unified-top-card__company-name")
+            company_name_link = company_name_element.find_element(By.TAG_NAME, "a").get_attribute("href")
+            company_name = company_name_element.text
+        except NoSuchElementException:
+            company_name = "NA"
+            company_name_link ="NA"
+        if is_fraud_company(company_name):
+            return None
+        # Extract POC (Point of Contact) details
+        try:
+            # Check if hiring team section exists using a more reliable method
+            hiring_team_sections = self.driver.find_elements(By.TAG_NAME, "h2")
+            hiring_team_section = None
+            for section in hiring_team_sections:
+                if "Meet the hiring team" in section.text:
+                    hiring_team_section = section
+                    break
+
+            if hiring_team_section:
+                # Extract POC name and profile link
+                try:
+                    poc_element = self.driver.find_element(By.CSS_SELECTOR, "span.jobs-poster__name strong")
+                    poc_name = poc_element.text.strip()
+
+                    # Get the parent anchor tag for the profile link
+                    poc_link = poc_element.find_element(By.XPATH, "./ancestor::a").get_attribute("href")
+                except:
+                    poc_name = "NA"
+                    poc_link = "NA"
+
+                # Extract connection degree
+                try:
+                    connection_degree_element = self.driver.find_element(By.CSS_SELECTOR,
+                                                                    "span.hirer-card__connection-degree")
+                    connection_degree = connection_degree_element.text.strip()
+                except:
+                    connection_degree = "NA"
+
+                # Extract headline
+                try:
+                    headline_element = self.driver.find_element(By.CSS_SELECTOR, "div.text-body-small")
+                    headline = headline_element.text.strip()
+                except:
+                    headline = "NA"
+            else:
+                # print("Hiring team section not found.")
                 poc_name = "NA"
                 poc_link = "NA"
-
-            # Extract connection degree
-            try:
-                connection_degree_element = driver.find_element(By.CSS_SELECTOR, "span.hirer-card__connection-degree")
-                connection_degree = connection_degree_element.text.strip()
-            except:
                 connection_degree = "NA"
-
-            # Extract headline
-            try:
-                headline_element = driver.find_element(By.CSS_SELECTOR, "div.text-body-small")
-                headline = headline_element.text.strip()
-            except:
                 headline = "NA"
 
-            # print(f"POC Name: {poc_name}")
-            # print(f"POC Link: {poc_link}")
-            # print(f"Connection Degree: {connection_degree}")
-            # print(f"Headline: {headline}")
-        else:
-            # print("Hiring team section not found.")
+        except:
             poc_name = "NA"
             poc_link = "NA"
             connection_degree = "NA"
             headline = "NA"
-    except Exception as e:
-        # print(f"Error extracting POC details: {str(e)}")
-        poc_name = "NA"
-        poc_link = "NA"
-        connection_degree = "NA"
-        headline = "NA"
+        # Modify the URL to point to the 'About' page (replace 'life' with 'about')
+        if company_name_link != "NA":
+            company_about_url = company_name_link.replace("/life", "/about")
+            # print(f"Company About URL: {company_about_url}")
 
-    # Modify the URL to point to the 'About' page (replace 'life' with 'about')
-    if company_name_link != "NA":
-        company_about_url = company_name_link.replace("/life", "/about")
-        # print(f"Company About URL: {company_about_url}")
+            # Open the About page in a new tab
+            self.driver.execute_script(f"window.open('{company_about_url}', '_blank');")
+            self.driver.switch_to.window(self.driver.window_handles[-1])  # Switch to the new tab
 
-        # Open the About page in a new tab
-        driver.execute_script(f"window.open('{company_about_url}', '_blank');")
-        driver.switch_to.window(driver.window_handles[-1])  # Switch to the new tab
+            # Extract Company Website from the About page
+            try:
+                website_element = self.driver.find_element(By.CSS_SELECTOR, "dd.mb4.t-black--light.text-body-medium a")
+                company_website = website_element.get_attribute("href")
+            except:
+                company_website = "NA"
 
-        # Extract Company Website from the About page
-        try:
-            website_element = driver.find_element(By.CSS_SELECTOR, "dd.mb4.t-black--light.text-body-medium a")
-            company_website = website_element.get_attribute("href")
-        except:
-            company_website = "NA"
+            # Extract Employee Size from the About page
+            try:
+                elements = self.driver.find_elements(By.CSS_SELECTOR, "dd.t-black--light.mb4.text-body-medium a span")
+                employee_size = "NA"
+                for element in elements:
+                    if "associated members" in element.text.lower() or "associated member" in element.text.lower():
+                        employee_size = element.text.strip()
+                        break
+            except:
+                employee_size = "NA"
 
-        # Extract Employee Size from the About page
-        try:
-            elements = driver.find_elements(By.CSS_SELECTOR, "dd.t-black--light.mb4.text-body-medium a span")
-            employee_size = "NA"
-            for element in elements:
-                if "associated members" in element.text.lower() or "associated member" in element.text.lower():
-                    employee_size = element.text.strip()
-                    break
-        except:
-            employee_size = "NA"
+            # Get company LinkedIn URL (removing /about)
+            company_linkedin_url = company_name_link.replace("/about", "")
 
-        # Get company LinkedIn URL (removing /about)
-        company_linkedin_url = company_name_link.replace("/about", "")
-
-        # Extract Industry and City from the About page
-        try:
-            info_items = driver.find_elements(By.CLASS_NAME, "org-top-card-summary-info-list__info-item")
-            if len(info_items) >= 2:
-                company_industry = info_items[0].text.strip()
-                company_city = info_items[1].text.strip()
-            else:
+            # Extract Industry and City from the About page
+            try:
+                info_items = self.driver.find_elements(By.CLASS_NAME, "org-top-card-summary-info-list__info-item")
+                if len(info_items) >= 2:
+                    company_industry = info_items[0].text.strip()
+                    company_city = info_items[1].text.strip()
+                else:
+                    company_industry = "NA"
+                    company_city = "NA"
+            except:
                 company_industry = "NA"
                 company_city = "NA"
-        except:
-            company_industry = "NA"
-            company_city = "NA"
 
-        # Close the About page and switch back to the main tab
-        driver.close()
-        driver.switch_to.window(driver.window_handles[0])  # Switch back to the original tab
-    else:
-        company_website = "NA"
-
-    # Extract Location and Posted Time
-    try:
-        primary_description_container = main_container.find_element(By.CLASS_NAME,
-                                                                    "job-details-jobs-unified-top-card__primary-description-container")
-        primary_description_text = primary_description_container.text
-        parts = primary_description_text.split(' · ')
-
-        if len(parts) >= 2:
-            location = parts[0].strip()
-            posted_time = parts[1].strip()
+            # Close the About page and switch back to the main tab
+            self.driver.close()
+            self.driver.switch_to.window(self.driver.window_handles[0])  # Switch back to the original tab
         else:
-            location = "NA"
-            posted_time = "NA"
-    except Exception as e:
-        location = "NA"
-        posted_time = "NA"
-    try:
-        job_insight_element = driver.find_element(By.CLASS_NAME, "job-details-fit-level-preferences")
-        insight_text = job_insight_element.text.strip()
-    except NoSuchElementException:
-        insight_text = "NA"
+            company_website = "NA"
+            # Extract Location and Posted Time
+            try:
+                primary_description_container = self.driver.find_element(By.CLASS_NAME,
+                                                                            "job-details-jobs-unified-top-card__primary-description-container")
+                primary_description_text = primary_description_container.text
+                parts = primary_description_text.split(' · ')
 
-    # Extract Job Description
-    try:
-        job_description_element = driver.find_element(By.CSS_SELECTOR,
-                                                      "div.jobs-box__html-content.jobs-description-content__text--stretch")
-        job_description = job_description_element.text.strip()
-    except:
-        job_description = "NA"
+                if len(parts) >= 2:
+                    location = parts[0].strip()
+                    posted_time = parts[1].strip()
+                else:
+                    location = "NA"
+                    posted_time = "NA"
+            except Exception as e:
+                location = "NA"
+                posted_time = "NA"
+            try:
+                job_insight_element = self.driver.find_element(By.CLASS_NAME, "job-details-fit-level-preferences")
+                insight_text = job_insight_element.text.strip()
+            except NoSuchElementException:
+                insight_text = "NA"
 
-    # Track matched keywords, allowing partial matches for all except "PPO"
-    matched_keywords = []
+            # Extract Job Description
+            try:
+                job_description_element = self.driver.find_element(By.CSS_SELECTOR,
+                                                              "div.jobs-box__html-content.jobs-description-content__text--stretch")
+                job_description = job_description_element.text.strip()
+            except:
+                job_description = "NA"
+        job_data = build_job_dict(
+            keyword,title,job_link,company_name,company_name_link,company_website,employee_size,company_industry,company_city,
+            company_linkedin_url,location,posted_time,insight_text,job_description,poc_name,poc_link,connection_degree,headline)
 
-    for keyword in KEYWORDS:
-        if keyword.lower() in ["ppo", "intern", "internship", "interns"]:
-            # Exact match check for "PPO" (case insensitive)
-            if any(f" {keyword.lower()} " in f" {detail.lower()} " for detail in
-                   [job_description, title, company_name]):
-                matched_keywords.append(key_word)
-        else:
-            # Partial match for other keywords (case insensitive)
-            if any(keyword.lower() in detail.lower() for detail in [job_description, title, company_name]):
-                matched_keywords.append(key_word)
+        return job_data
 
-    matched_keywords_str = ', '.join(matched_keywords) if matched_keywords else "None"
+    # ---------------------
 
-    # print(f"Job Link: {job_link}")
-    # print(f"Company Website: {company_website}")
-    # print(f"Employee Size: {employee_size}")
-    # print(f"Company Industry: {company_industry}")
-    # print(f"Company City: {company_city}")
-    # print(f"Company LinkedIn URL: {company_linkedin_url}")
-    # #print(f"Matched Keywords: {matched_keywords_str}")
-
-    job_details = {
-        "Title": title,
-        "Company": company_name,
-        "Posted Time": posted_time,
-        "Location": location,
-        "Job Link": job_link,
-        "Job Details": insight_text,
-        "Job Description": job_description,
-        "Matched Keywords": matched_keywords_str,
-        "Company Website": company_website,
-        "Employee Size": employee_size,
-        "Company Industry": company_industry,
-        "Company City": company_city,
-        "Company LinkedIn URL": company_linkedin_url,
-        "POC Name": poc_name,
-        "POC Profile Link": poc_link,
-        "Connection Degree": connection_degree,
-        "POC Headline": headline
-    }
-
-    jobs_list.append(job_details)
-    # "additional_data": os.path.splitext(os.path.basename(__file__))[0]
-    job_data = {
-        "additional_data": key_word,
-        "title": title,
-        "company": company_name,
-        "posted_time": posted_time,
-        "location": location,
-        "job_link": job_link,
-        "job_details": insight_text,
-        "job_description": job_description,
-        "matched_keywords": matched_keywords_str,
-        "company_website": company_website,
-        "employee_size": employee_size,
-        "company_industry": company_industry,
-        "company_city": company_city,
-        "company_linkedin_url": company_linkedin_url,
-        "poc_name": poc_name,
-        "poc_profile_link": poc_link,
-        "connection_degree": connection_degree,
-        "poc_headline": headline
-    }
-
-    response = requests.post(WEB_APP_URL, json=job_data)
-    # print("Response:", response.text)
-
-
-def click_each_job_item():
-    job_items = driver.find_elements(By.CSS_SELECTOR, '[data-occludable-job-id]')
-
-    for job in job_items:
-        # Check if the job has already been viewed
-        try:
-            viewed_label = job.find_element(By.CSS_SELECTOR,
-                                            "li.job-card-container__footer-item.job-card-container__footer-job-state.t-bold")
-            if "Viewed" in viewed_label.text:
-                # print("Job already viewed. Skipping this job item.")
-                continue  # Skip to the next job item
-        except NoSuchElementException:
-            # If the 'Viewed' label is not present, proceed to click the job
-            pass
-
-        # Extract the company name before clicking the job item
-        try:
-            company_element = job.find_element(By.CLASS_NAME, 'boAvmrAFfwZEHebYjctgTppwiEwazqIftEMU')
-            company_name = company_element.text.strip()
-
-            # Check if the company is in the fraud list (case insensitive)
-            if company_name.lower() in [fraud_company.lower() for fraud_company in FRAUD_COMPANIES_LIST]:
-                # print(f"Skipping job from fraudulent company: {company_name}")
-                continue  # Skip this job and move to the next one
-
-        except NoSuchElementException:
-            pass
-            # print("Company name element not found. Proceeding with caution...")
-
-        wait_time = random.randint(2, 4)
-        # print(f"Waiting for {wait_time} seconds before clicking the next job...")
-        time.sleep(wait_time)
-        # scroll_job_list()
-        driver.execute_script("arguments[0].scrollIntoView(true);", job)
-
-        try:
-            job_link = job.find_element(By.CSS_SELECTOR, 'a.job-card-container__link')
-            job_link.click()
-            # print("Clicked job item and extracting the job details")
-            extract_job_details(key_word)
-        except (ElementNotInteractableException, NoSuchElementException):
-            # print("Anchor element not clickable. Trying a different element...")
-            # Try to click another element
-            alternative_links = driver.find_elements(By.CSS_SELECTOR, 'a.job-card-container__link')
-            if alternative_links:
-                alternative_links[0].click()
-                # print("Clicked an alternative job item and extracting the job details")
-                extract_job_details(key_word)
-            else:
-                pass
-                # print("No alternative job elements found.")
-
-
-def get_job_listings():
-    try:
-        job_list_container = WebDriverWait(driver, 20).until(
-            EC.presence_of_element_located((By.CLASS_NAME, "scaffold-layout__list"))
+    def scrape_page(self) -> None:
+        time.sleep(3)
+        job_cards = self.driver.find_elements(
+            By.CSS_SELECTOR,
+            "[data-occludable-job-id]"
         )
-        # print("Job list container found.")
+        time.sleep(2)
+        for card in job_cards:
+            try:
+                card.click()
+                time.sleep(2)
+                job_data = self.extract_current_job()
 
-        job_list_items = job_list_container.find_elements(By.CSS_SELECTOR, "[data-occludable-job-id]")
-        # print(f"Total number of job listings: {len(job_list_items)}")
-        click_each_job_item()
+                if job_data:
+                    self.jobs.append(job_data)
 
-    except TimeoutException as e:
-        pass
-        # print("Job list container not found or took too long to load.", str(e))
-    except NoSuchElementException as e:
-        pass
-        # print("Error accessing job listing details.", str(e))
-    except Exception as e:
-        pass
-        # print("An error occurred:", str(e))
+                    if self.webhook_url:
+                        requests.post(self.webhook_url, json=job_data)
 
+            except ElementNotInteractableException:
+                continue
 
-def click_next_button(current_page):
-    try:
-        # First try to find the numbered page button
-        next_page_label = f"Page {current_page + 1}"
-        try:
-            page_button = WebDriverWait(driver, 5).until(
-                EC.element_to_be_clickable((By.XPATH, f"//button[@aria-label='{next_page_label}']"))
-            )
-            page_button.click()
-            # print(f"Page button {next_page_label} clicked.")
-            return True
-        except TimeoutException:
-            # If numbered page button not found, try the "View next page" button
-            next_button = WebDriverWait(driver, 5).until(
-                EC.element_to_be_clickable((By.XPATH, "//button[contains(@aria-label, 'View next page')]"))
-            )
-            next_button.click()
-            # print(f"Next button for {next_page_label} clicked.")
-            return True
-    except TimeoutException:
-        # print(f"No more pages available after page {current_page}.")
-        return False
+    # ---------------------
+
+    def scrape(self) -> List[Dict]:
+
+        for page in range(self.max_pages):
+            logger.info(f"Scraping page {page + 1}")
+            self.scrape_page()
+
+        return self.jobs
 
 
-def iterate_pages(key_word):
-    page = 1
-    max_pages = MAX_NO_OF_PAGES_TO_POOL
-    with tqdm(total=max_pages, desc="Extracting Pages...", ncols=100, colour="cyan") as pbar:
-        while page <= max_pages:
-            # print(f"Extracting jobs from page {page}")
-            get_job_listings()
+# =========================
+# CSV SAVE FUNCTION
+# =========================
 
-            if click_next_button(page):
-                wait_time = random.randint(2, 3)
-                # print(f"Waiting for {wait_time} seconds before moving to the next page...")
-                time.sleep(wait_time)
-                page += 1
-                pbar.update(1)
-            else:
-                # print("No more pages. Extraction complete.")
-                tqdm.write("✅ No more pages with keyword . Extraction complete.")
-                if key_word == 'MERN':
-                    key_word = 'ReactJS'
-                    LINK = f'https://www.linkedin.com/jobs/search/?currentJobId=4304630441&f_E=1%2C2&f_TPR=r86400&keywords={str(key_word)}'
-                    driver.get(LINK)
-                    print(
-                        f"No results found with keyword : MERN .So searching with keyword {key_word} and continuing the process")
-                    iterate_pages(key_word)
-                break
+def save_to_csv(jobs: List[Dict], output_dir: str) -> str:
+
+    if not jobs:
+        raise ValueError("No jobs to save.")
+
+    os.makedirs(output_dir, exist_ok=True)
+
+    filename = f"jobs_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    file_path = os.path.join(output_dir, filename)
+
+    keys = jobs[0].keys()
+
+    with open(file_path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=keys)
+        writer.writeheader()
+        writer.writerows(jobs)
+
+    logger.info(f"Saved CSV to {file_path}")
+    return file_path
 
 
-def send_email_with_attachment(filename):
-    try:
-        # Create the email message
-        msg = MIMEMultipart()
-        msg['From'] = SENDER_EMAIL
-        msg['To'] = RECIPIENT_EMAIL  # Sending to multiple recipients
-        msg['Subject'] = f'Job Listings CSV File: {filename}'
-
-        # Attach the body with the email (using MIMEText for the email body)
-        body = "Attached is the CSV file containing the scraped job listings."
-        msg.attach(MIMEText(body, 'plain'))  # Attach the body as plain text
-
-        # Attach the CSV file
-        attachment = open(filename, "rb")
-        part = MIMEBase('application', 'octet-stream')
-        part.set_payload(attachment.read())
-        encoders.encode_base64(part)
-        part.add_header('Content-Disposition', f"attachment; filename={os.path.basename(filename)}")
-        msg.attach(part)
-
-        # Establish SMTP session
-        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
-        server.starttls()  # Use TLS encryption
-        server.login(SENDER_EMAIL, SENDER_PASSWORD)
-
-        # Send the email
-        text = msg.as_string()
-        server.sendmail(SENDER_EMAIL, RECIPIENT_EMAILS, text)  # Send to all recipients in the list
-        server.quit()
-
-        # print(f"Email sent successfully to {', '.join(RECIPIENT_EMAILS)}")
-
-    except Exception as e:
-        pass
-        # print(f"Error sending email: {e}")
-
-
-def save_to_csv(filename='jobs_list.csv'):
-    # Ensure the directory exists
-    os.makedirs(OUTPUT_DIRECTORY, exist_ok=True)
-    script_name = os.path.splitext(os.path.basename(__file__))[0]
-
-    # Append the current timestamp to the filename
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    filename = f'{script_name}_jobs_list_{timestamp}.csv'
-
-    # Create the full file path
-    file_path = os.path.join(OUTPUT_DIRECTORY, filename)
-
-    # Save the CSV file to the specified path
-    if jobs_list:
-        keys = jobs_list[0].keys()
-        with open(file_path, 'w', newline='', encoding='utf-8') as output_file:
-            dict_writer = csv.DictWriter(output_file, fieldnames=keys)
-            dict_writer.writeheader()
-            dict_writer.writerows(jobs_list)
-        send_mail(file_path)
-        # print(f"Job List saved at {file_path}")
-        # send_email_with_attachment(file_path)
-    else:
-        pass
-        # print("No job details to save.")
-
+# =========================
+# MAIN ENTRY
+# =========================
 
 def main():
+
+    username = os.getenv("LINKEDIN_USERNAME")
+    password = os.getenv("LINKEDIN_PASSWORD")
+    keyword = os.getenv("JOB_KEYWORD", "Data Analyst")
+    output_dir = os.getenv("OUTPUT_DIR", r"C:\Users\linus\Downloads\LinkedIN")
+
+    if not username or not password:
+        raise ValueError("Missing LinkedIn credentials in environment variables.")
+
+    driver = create_driver(headless=True)
+
     try:
-        driver.get("https://www.linkedin.com/login")
+        scraper = LinkedInJobScraper(
+            driver=driver,
+            username=username,
+            password=password,
+            keyword=keyword,
+            max_pages=10,
+        )
 
-        try:
-            USERNAME = "kotaharshita@gmail.com"
-            PASSWORD = "Harshita123$"
-            account_login(USERNAME=USERNAME,PASSWORD=PASSWORD)
-        except Exception as e:
-            print(e)
-            USERNAME = "dakshayaniyellanki@gmail.com"
-            PASSWORD = "#@292686@#"
-            print(f'Using alternate credentials : {USERNAME}')
-            account_login(USERNAME, PASSWORD)
+        scraper.login()
+        scraper.open_jobs_page()
+        jobs = scraper.scrape()
 
+        if jobs:
+            save_to_csv(jobs, output_dir)
 
-
-        finally:
-            print('Website not responding with current credentials')
-
-        print("Successfully logged In...")
-        send_mail()
-        # print(LINK)
-        driver.get(LINK)
-        iterate_pages(key_word)
-    except Exception as e:
-        pass
-
-        # print(f"An error occurred during execution: {e}")
     finally:
-        save_to_csv()
         driver.quit()
 
 

@@ -54,8 +54,8 @@ def key_word_processing(key_word):
             key_word_string += "-"+word
     return key_word_string,key_word_string.replace('-','%20')
 key_word_string,key_word_string_2= key_word_processing(key_word)
-LINK=f'https://www.naukri.com/{key_word_string}-jobs?k={key_word_string_2}&nignbevent_src=jobsearchDeskGNB'
-print(f'Scraping with Keyword "{key_word}"')
+LINK=f'https://www.naukri.com/it-jobs?src=gnbjobs_homepage_srch'
+# print(f'Scraping with Keyword "{key_word}"')
 # print ( f'Current Arguments :{sys.argv[1:]}')
 
 # print(f'LINK : {LINK} ')
@@ -648,23 +648,23 @@ def main():
     try:
         driver.get("https://www.naukri.com/nlogin/login?URL=https://www.naukri.com/mnjuser/inbox?utm_campaign=broadcast_rmj&utm_medium=email&utm_source=applyNow")
 
-        try:
-            USERNAME = "sunilchandralanke@gmail.com"
-            PASSWORD = "Momndad&55555"
-            account_login(USERNAME=USERNAME,PASSWORD=PASSWORD)
-        except Exception as e:
-            print(e)
-            USERNAME = "dakshayaniyellanki@gmail.com"
-            PASSWORD = "#@292686@#"
-            print(f'Using alternate credentials : {USERNAME}')
-            account_login(USERNAME, PASSWORD)
-
-
-
-        finally:
-            print('Website not responding with current credentials')
-
-        print("Successfully logged In...")
+        # try:
+        #     USERNAME = "sunilchandralanke@gmail.com"
+        #     PASSWORD = "Momndad&55555"
+        #     account_login(USERNAME=USERNAME,PASSWORD=PASSWORD)
+        # except Exception as e:
+        #     print(e)
+        #     USERNAME = "dakshayaniyellanki@gmail.com"
+        #     PASSWORD = "#@292686@#"
+        #     print(f'Using alternate credentials : {USERNAME}')
+        #     account_login(USERNAME, PASSWORD)
+        #
+        #
+        #
+        # finally:
+        #     print('Website not responding with current credentials')
+        #
+        # print("Successfully logged In...")
         # print(LINK)
         driver.get(LINK)
         iterate_pages(key_word)
