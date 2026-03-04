@@ -46,7 +46,7 @@ OUTPUT_DIRECTORY = r"C:\Users\linus\Downloads\LinkedIN"
 # key_word = sys.argv[1]
 # USERNAME = sys.argv[2]
 # PASSWORD = sys.argv[3]
-key_word = 'Python'
+key_word = 'DataAnalyst'
 # USERNAME = "kotaharshita@gmail.com"
 # PASSWORD = "Harshita123$"
 LINK = f'https://www.linkedin.com/jobs/search/?currentJobId=4304630441&f_E=1%2C2&f_TPR=r86400&keywords={str(key_word)}'
@@ -670,7 +670,7 @@ def main():
             print('Website not responding with current credentials')
 
         print("Successfully logged In...")
-        send_mail()
+        # send_mail()
         # print(LINK)
         driver.get(LINK)
         iterate_pages(key_word)
